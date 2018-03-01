@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-01 14:06:19
+# @Last Modified time: 2018-03-01 17:05:47
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model
@@ -38,7 +38,6 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 				if depth == 0 : 
 					layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
 				else:
-					#for rep in range(reps):
 					candidateNameList = selectCandidateLayers(layerDic,t,depth)
 					candidateNameList = drawing(candidateNameList)
 					layerBelowName = str(depth-1)+'.'+str(t)
@@ -85,10 +84,10 @@ def selectCandidateLayers(layerDic,t,c):
 		depth,iteration = layerName.split('.')
 		try : 
 			depth_int,iteration_int = int(depth),int(iteration)
-			if iteration_int < t and depth_int == c-1 :
+			if depth_int == c-1 :
 				candidateList.append(layerName)
 		except :
-		     pass
+		    pass
 	return candidateList
 
 def layerCall(dic,keys):
@@ -100,6 +99,7 @@ def main():
 	B = 10
 	T = 5
 	lr = .001
+	epoch = 1000
 	model,layerDic = builder(B,T,flattenDimIm,lr,"B",1)
 	print(layerDic)
 	plot_model(model,to_file='model.png',show_shapes=True)
