@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-01 12:54:35
+# @Last Modified time: 2018-03-01 14:06:19
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model
@@ -40,16 +40,18 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 				else:
 					#for rep in range(reps):
 					candidateNameList = selectCandidateLayers(layerDic,t,depth)
+					candidateNameList = drawing(candidateNameList)
 					layerBelowName = str(depth-1)+'.'+str(t)
 					candidateNameList.append(layerBelowName)
+					candidateNameList = list(set(candidateNameList))
 					candidateLayers = layerCall(layerDic,candidateNameList)
 					if len(candidateLayers)>1:
 						layerDic[concatLayerName] = concatenate(candidateLayers)
 						layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic[concatLayerName])
 					else :
 						layerDic[layerName]=Dense(B, activation='relu',name=layerName)(candidateLayers[0])
-					if depth == currentDepth-1:
-						layersNamesToOutput.append(layerName)
+				if depth == currentDepth-1:
+					layersNamesToOutput.append(layerName)
 			layersToOutput = layerCall(layerDic,layersNamesToOutput)
 			if len(layersToOutput)>1 :
 				layerDic[concatOutName] = concatenate(layersToOutput)
@@ -61,9 +63,9 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 	return model, layerDic
 
 def drawing(candidatNames):
-	numberToDraw = random.randint(0, len(candidatNames))
+	numberToDraw = np.random.randint(0, len(candidatNames))
 	result = np.random.choice(candidatNames, size=numberToDraw, replace=False)
-	return result
+	return result.tolist()
 
 def getPreviousDepth(layerDic,t):
 	previousDepth = 0
