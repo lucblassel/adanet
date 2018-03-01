@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-01 14:06:19
+# @Last Modified time: 2018-03-01 17:05:47
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model
@@ -40,7 +40,6 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 				if depth == 0 :
 					layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
 				else:
-					#for rep in range(reps):
 					candidateNameList = selectCandidateLayers(layerDic,t,depth)
 					candidateNameList = drawing(candidateNameList)
 					layerBelowName = str(depth-1)+'.'+str(t)
@@ -87,10 +86,10 @@ def selectCandidateLayers(layerDic,t,c):
 		depth,iteration = layerName.split('.')
 		try :
 			depth_int,iteration_int = int(depth),int(iteration)
-			if iteration_int < t and depth_int == c-1 :
+			if depth_int == c-1 :
 				candidateList.append(layerName)
 		except :
-		     pass
+		    pass
 	return candidateList
 
 def layerCall(dic,keys):
@@ -105,6 +104,7 @@ def main():
 	lr = .00001
 	trainNum = 5000
 	testNum = 10
+	epoch = 1000
 
 	labels = [0,2]
 
@@ -120,7 +120,7 @@ def main():
 	model,layerDic = builder(B,T,flattenDimIm,lr,"B",1)
 	plot_model(model,to_file='model.png',show_shapes=True)
 
-	model.fit(x=x_train_reshaped,y=y_train[:trainNum],epochs=100,batch_size=100,verbose=1)
+	model.fit(x=x_train_reshaped,y=y_train[:trainNum],epochs=epoch,batch_size=100,verbose=1)
 
 	preds = model.predict(x_test_reshaped)
 
