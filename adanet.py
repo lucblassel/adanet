@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-01 17:05:47
+# @Last Modified time: 2018-03-01 19:33:09
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model
@@ -61,7 +61,10 @@ def builder(B,T,flattenDimIm,lr,option,reps,x_train,y_train,epochs,batch_size):
 				layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+<<<<<<< HEAD
 
+=======
+>>>>>>> 19e2dadfea09f283d64317aff93d2c39018c0acb
 		model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 	return model, layerDic
 
