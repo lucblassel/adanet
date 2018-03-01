@@ -9,6 +9,8 @@ from keras.models import Model
 from keras.utils import plot_model
 from keras import backend as k
 from keras import optimizers
+from keras.datasets import cifar10
+import dataProcessing as dp
 
 def builder(B,T,flattenDimIm,lr,option,reps):
 	"""
@@ -25,7 +27,7 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 			layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[layerName])
 			layersNamesToOutput.append(layerName)
 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-			model.compile(optimizer = optimizers.Adam(lr=lr,amsgrad=True), loss='binary_crossentropy', metrics=['accuracy'])
+			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 		else:
 			PreviousDepth = getPreviousDepth(layerDic,t)
 			if option == "A":
@@ -35,7 +37,7 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 			for depth in range (currentDepth):
 				layerName = str(depth)+'.'+str(t)
 				concatLayerName = 'c' + layerName
-				if depth == 0 : 
+				if depth == 0 :
 					layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
 				else:
 					#for rep in range(reps):
@@ -59,7 +61,7 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 			else:
 				layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-			model.compile(optimizer = optimizers.Adam(lr=lr,amsgrad=True), loss='binary_crossentropy', metrics=['accuracy'])
+			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 	return model, layerDic
 
 def drawing(candidatNames):
@@ -71,7 +73,7 @@ def getPreviousDepth(layerDic,t):
 	previousDepth = 0
 	for layerName in layerDic.keys():
 		depth,iteration = layerName.split('.')
-		try : 
+		try :
 			depth_int,iteration_int = int(depth),int(iteration)
 			if iteration_int == t-1 and depth_int > previousDepth:
 				previousDepth = depth_int
@@ -83,7 +85,7 @@ def selectCandidateLayers(layerDic,t,c):
 	candidateList = []
 	for layerName in layerDic.keys():
 		depth,iteration = layerName.split('.')
-		try : 
+		try :
 			depth_int,iteration_int = int(depth),int(iteration)
 			if iteration_int < t and depth_int == c-1 :
 				candidateList.append(layerName)
@@ -95,14 +97,35 @@ def layerCall(dic,keys):
 	return [dic[key] for key in keys]
 
 def main():
+
 	imsize =  32
 	flattenDimIm = imsize*imsize*3
 	B = 10
-	T = 5
-	lr = .001
+	T = 10
+	lr = .00001
+	trainNum = 5000
+	testNum = 10
+
+	labels = [0,2]
+
+	train, test = dp.loadRawData()
+	x_train, y_train = dp.loadTrainingData(train,labels,trainNum)
+	x_test, y_test = dp.loadTestingData(test,labels,testNum)
+
+	x_train_reshaped = x_train.flatten().reshape(trainNum,flattenDimIm)/255
+	x_test_reshaped = x_test.flatten().reshape(testNum,flattenDimIm)/255
+
+	print(x_train_reshaped.shape)
+
 	model,layerDic = builder(B,T,flattenDimIm,lr,"B",1)
-	print(layerDic)
 	plot_model(model,to_file='model.png',show_shapes=True)
+
+	model.fit(x=x_train_reshaped,y=y_train[:trainNum],epochs=100,batch_size=100,verbose=1)
+
+	preds = model.predict(x_test_reshaped)
+
+	for i in range(len(preds)):
+		print(preds[i],y_test[i])
 
 if __name__ == '__main__':
 	main()
