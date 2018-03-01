@@ -62,7 +62,7 @@ def builder(B,T,flattenDimIm,lr,option,reps,x_train,y_train,epochs,batch_size):
 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 
-			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+		model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 	return model, layerDic
 
 def drawing(candidatNames):
