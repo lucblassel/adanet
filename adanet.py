@@ -12,7 +12,7 @@ from keras import optimizers
 from keras.datasets import cifar10
 import dataProcessing as dp
 
-def builder(B,T,flattenDimIm,lr,option,reps):
+def builder(B,T,flattenDimIm,lr,option,reps,x_train,y_train,epochs,batch_size):
 	"""
 	romain.gautron@agroparistech.fr
 	"""
@@ -61,6 +61,8 @@ def builder(B,T,flattenDimIm,lr,option,reps):
 				layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+
+			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 	return model, layerDic
 
 def drawing(candidatNames):
@@ -101,10 +103,11 @@ def main():
 	flattenDimIm = imsize*imsize*3
 	B = 10
 	T = 10
-	lr = .00001
+	lr = .0001
 	trainNum = 5000
 	testNum = 10
-	epoch = 1000
+	epochs = 100
+	batch_size = 100
 
 	labels = [0,2]
 
@@ -117,10 +120,9 @@ def main():
 
 	print(x_train_reshaped.shape)
 
-	model,layerDic = builder(B,T,flattenDimIm,lr,"B",1)
+	model,layerDic = builder(B,T,flattenDimIm,lr,"B",1,x_train_reshaped,y_train[:trainNum],epochs,batch_size)
 	plot_model(model,to_file='model.png',show_shapes=True)
 
-	model.fit(x=x_train_reshaped,y=y_train[:trainNum],epochs=epoch,batch_size=100,verbose=1)
 
 	preds = model.predict(x_test_reshaped)
 
