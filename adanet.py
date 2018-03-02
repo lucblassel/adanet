@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-02 14:13:51
+# @Last Modified time: 2018-03-02 14:20:08
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
