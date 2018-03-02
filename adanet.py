@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-02 14:49:10
+# @Last Modified time: 2018-03-02 14:53:11
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
@@ -40,16 +40,16 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 				dill.dump(layerDic, f)
 			k.clear_session()
 		else:
-			with open('layersNamesToOutput.pkl', 'rb') as f:
-				layersNamesToOutput = dill.load(f)
-			with open('layerDic.pkl', 'rb') as f:
-				layerDic = dill.load(f)
 			model = load_model(pathToSaveModel)
 			# for layer in model.layers:
 			# 	layerDic[layer.name]=layer
 			previousDepth = getPreviousDepth(layerDic,t)
 			previousPredictions = classPrediction(model,x_test,proba_threshold)
 			for rep in range(reps):
+				with open('layerDic.pkl', 'rb') as f:
+					layerDic = dill.load(f)
+				with open('layersNamesToOutput.pkl', 'rb') as f:
+					layersNamesToOutput = dill.load(f)
 				if rep > reps//2 : 
 					currentDepth = previousDepth
 				else :
@@ -95,7 +95,6 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 				else:
 					return
 				k.clear_session()
-
 
 # saving layerNamesToOut
 def drawing(candidatNames):
