@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-02 14:53:11
+# @Last Modified time: 2018-03-02 14:54:09
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
@@ -92,8 +92,6 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 						dill.dump(layersNamesToOutput, f)
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
-				else:
-					return
 				k.clear_session()
 
 # saving layerNamesToOut
