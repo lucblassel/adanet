@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-02 14:44:43
+# @Last Modified time: 2018-03-02 14:49:10
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
@@ -30,17 +30,26 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 			layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[layerName])
 			layersNamesToOutput.append(layerName)
 			previousScore = 10000
+			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
+			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+			model.save(pathToSaveModel)
+			with open('layersNamesToOutput.pkl', 'wb') as f:
+				dill.dump(layersNamesToOutput, f)
+			with open('layerDic.pkl', 'wb') as f:
+				dill.dump(layerDic, f)
+			k.clear_session()
 		else:
 			with open('layersNamesToOutput.pkl', 'rb') as f:
 				layersNamesToOutput = dill.load(f)
+			with open('layerDic.pkl', 'rb') as f:
+				layerDic = dill.load(f)
 			model = load_model(pathToSaveModel)
 			# for layer in model.layers:
 			# 	layerDic[layer.name]=layer
 			previousDepth = getPreviousDepth(layerDic,t)
 			previousPredictions = classPrediction(model,x_test,proba_threshold)
 			for rep in range(reps):
-				with open('layerDic.pkl', 'rb') as f:
-					layerDic = dill.load(f)
 				if rep > reps//2 : 
 					currentDepth = previousDepth
 				else :
@@ -70,29 +79,23 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[concatOutName])
 				else:
 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
-					model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-					model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-					model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-				if t == 0:
+				model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
+				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+		
+				currentPredictions = classPrediction(model,x_test,proba_threshold)
+				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
+				if previousScore - currentScore > epsilon:
+					previousScore = currentScore
 					model.save(pathToSaveModel)
 					with open('layersNamesToOutput.pkl', 'wb') as f:
 						dill.dump(layersNamesToOutput, f)
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
-					k.clear_session()
 				else:
-					currentPredictions = classPrediction(model,x_test,proba_threshold)
-					currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
-					if previousScore - currentScore > epsilon:
-						previousScore = currentScore
-						model.save(pathToSaveModel)
-						with open('layersNamesToOutput.pkl', 'wb') as f:
-							dill.dump(layersNamesToOutput, f)
-						with open('layerDic.pkl', 'wb') as f:
-							dill.dump(layerDic, f)
-					else:
-						return
-					k.clear_session()
+					return
+				k.clear_session()
+
 
 # saving layerNamesToOut
 def drawing(candidatNames):
