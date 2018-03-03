@@ -14,6 +14,126 @@ import dataProcessing as dp
 import copy as cp
 from itertools import chain
 import dill
+from pprint import pprint
+import inspect
+
+def toSymbolicDict(layerDic):
+	"""
+	luc.blassel@agroparistech.fr
+	"""
+	tensorDic = {}
+	print(layerDic)
+	for key in layerDic:
+		params = layerDic[key]
+		print(key,params)
+		if key == "feeding.Layer":
+			tensorDic[key] = Input(shape=params[1]['shape'],name=key)
+		elif key[0] == 'c': #concatenating layer
+			print("creating concat layer")
+			candidateLayers = layerCall(tensorDic,params[1])
+			tensorDic[key] = params[0](candidateLayers)
+		elif key != 'output.Layer':
+			print('Dense Layer')
+			tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
+
+	#output layer has to be updated last
+	key = 'output.Layer'
+	params = layerDic[key]
+	tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
+
+	return tensorDic
+
+def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
+	"""
+	luc.blassel@agroparistech.fr
+	"""
+	layerDic = {}
+	layersNamesToOutput = []
+	concatOutName = 'c.out'
+
+	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
+
+	for t in range(T):
+		if t==0:
+			layerName = '0.0'
+			layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
+			layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layerName)
+			layersNamesToOutput.append(layerName)
+			previousScore = 10000
+
+
+			symbolicTensorsDict = toSymbolicDict(layerDic)
+			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
+			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+			model.save_weights('w_'+pathToSaveModel)
+			model.save(pathToSaveModel)
+
+			with open('layerDic.pkl','wb') as dicFile:
+				dill.dump(layerDic,dicFile)
+			with open('layersNamesToOutput.pkl','wb') as outFile:
+				dill.dump(layersNamesToOutput,outFile)
+			k.clear_session()
+		else:
+			for rep in range(reps):
+
+				modelTest = load_model(pathToSaveModel)
+				previousDepth = getPreviousDepth(layerDic,t)
+				previousPredictions = classPrediction(modelTest,x_test,proba_threshold)
+
+				with open('layerDic.pkl', 'rb') as f:
+					layerDic = dill.load(f)
+				with open('layersNamesToOutput.pkl', 'rb') as f:
+					layersNamesToOutput = dill.load(f)
+				if rep > reps//2 :
+					currentDepth = previousDepth
+				else :
+					currentDepth = previousDepth + 1
+				for depth in range (currentDepth):
+					layerName = str(depth)+'.'+str(t)
+					concatLayerName = 'c' + layerName
+					if depth == 0 :
+						layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
+					else:
+						candidateNameList = selectCandidateLayers(layerDic,t,depth)
+						candidateNameList = drawing(candidateNameList)
+						layerBelowName = str(depth-1)+'.'+str(t)
+						candidateNameList.append(layerBelowName)
+						candidateNameList = list(set(candidateNameList))
+						if len(candidateNameList)>1:
+							layerDic[concatLayerName] = (concatenate,candidateNameList)
+							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},concatLayerName)
+						else :
+							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},candidateNameList[0])
+					if depth == currentDepth-1:
+						layersNamesToOutput.append(layerName)
+				# layersToOutput = layerCall(layerDic,layersNamesToOutput)
+				if len(layersNamesToOutput)>1 :
+					layerDic[concatOutName] = (concatenate,layersNamesToOutput)
+					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
+				else:
+					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
+
+				symbolicTensorsDict = toSymbolicDict(layerDic)
+
+				model = Model(inputs=symbolicTensorsDict['feeding.Layer'], outputs=symbolicTensorsDict['output.Layer'])
+				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+				model.load_weights('w_'+pathToSaveModel,by_name=True)
+				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+
+				currentPredictions = classPrediction(model,x_test,proba_threshold)
+				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
+				if previousScore - currentScore > epsilon:
+					print("saving better model")
+					previousScore = currentScore
+					model.save(pathToSaveModel)
+					model.save_weights('w_'+pathToSaveModel)
+					with open('layersNamesToOutput.pkl', 'wb') as f:
+						dill.dump(layersNamesToOutput, f)
+					with open('layerDic.pkl', 'wb') as f:
+						dill.dump(layerDic, f)
+				k.clear_session()
+
 
 def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
 	"""
@@ -41,8 +161,6 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 			k.clear_session()
 		else:
 			model = load_model(pathToSaveModel)
-			# for layer in model.layers:
-			# 	layerDic[layer.name]=layer
 			previousDepth = getPreviousDepth(layerDic,t)
 			previousPredictions = classPrediction(model,x_test,proba_threshold)
 			for rep in range(reps):
@@ -50,7 +168,7 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 					layerDic = dill.load(f)
 				with open('layersNamesToOutput.pkl', 'rb') as f:
 					layersNamesToOutput = dill.load(f)
-				if rep > reps//2 : 
+				if rep > reps//2 :
 					currentDepth = previousDepth
 				else :
 					currentDepth = previousDepth + 1
@@ -82,7 +200,7 @@ def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_
 				model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-		
+
 				currentPredictions = classPrediction(model,x_test,proba_threshold)
 				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
 				if previousScore - currentScore > epsilon:
@@ -153,15 +271,15 @@ def main():
 	imsize =  32
 	flattenDimIm = imsize*imsize*3
 	B = 10
-	T = 10
+	T = 2
 	lr = .0001
 	trainNum = 5000
 	testNum = 10
-	epochs = 100
+	epochs = 10
 	batch_size = 100
 	NrandomModels  = 10
 	epsilon = .001
-	labels = [0,2]
+	labels = [0,1]
 	proba_threshold = .5
 
 	train, test = dp.loadRawData()
@@ -173,14 +291,23 @@ def main():
 
 	print(x_train_reshaped.shape)
 
-	builder(B,T,flattenDimIm,lr,1,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
-	plot_model(model,to_file='model.png',show_shapes=True)
+	builderNew(B,T,flattenDimIm,lr,1,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
+
+	# layer = Input(shape=(flattenDimIm,),name="input.layer")
+	# layer2 = Dense(B,activation = 'relu',name='0.0')(layer)
+    #
+	# pprint(vars(layer))
+	# pprint(vars(layer2))
+    #
+	# pprint(inspect.getmembers(layer))
+	# builder(B,T,flattenDimIm,lr,1,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
+	# plot_model(model,to_file='model.png',show_shapes=True)
 
 
-	preds = model.predict(x_test_reshaped)
-
-	for i in range(len(preds)):
-		print(preds[i],y_test[i])
+	# preds = model.predict(x_test_reshaped)
+    #
+	# for i in range(len(preds)):
+	# 	print(preds[i],y_test[i])
 
 if __name__ == '__main__':
 	main()
