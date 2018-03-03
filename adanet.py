@@ -17,31 +17,67 @@ import dill
 from pprint import pprint
 import inspect
 
-def toSymbolicDict(layerDic):
+def runthrough(T,depth,layerDic):
+	print(100*"*")
+	for rep in range(depth):
+		for t in range(T):
+			concatName = 'c'+str(rep)+'.'+str(t)
+			layerName = str(rep)+'.'+str(t)
+			print(concatName,layerName)
+			try:
+				print(layerDic[concatName])
+			except:
+				pass
+			try:
+				print(layerDic[layerName])
+			except:
+				pass
+
+def toSymbolicDict(T,depth,layerDic):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
 	tensorDic = {}
-	print(layerDic)
-	for key in layerDic:
-		params = layerDic[key]
-		print(key,params)
-		if key == "feeding.Layer":
-			tensorDic[key] = Input(shape=params[1]['shape'],name=key)
-		elif key[0] == 'c': #concatenating layer
-			print("creating concat layer")
-			candidateLayers = layerCall(tensorDic,params[1])
-			tensorDic[key] = params[0](candidateLayers)
-		elif key != 'output.Layer':
-			print('Dense Layer')
-			tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
+	print('layerDic:')
+	pprint(layerDic)
+	print()
+	key = "feeding.Layer"
+	params = layerDic[key]
+	tensorDic[key] = Input(shape=params[1]['shape'],name=key)
 
-	#output layer has to be updated last
+	for rep in range(depth):
+		for t in range(T):
+			for prefix in ("c",""):
+				key = prefix+str(rep)+'.'+str(t)
+				try:
+					params = layerDic[key]
+					if key[0] == 'c': #concatenating layer
+						print("bulding concat layer")
+						print(params[1])
+						candidateLayers = layerCall(tensorDic,params[1])
+						tensorDic[key] = params[0](candidateLayers)
+					elif key != 'output.Layer':
+						print('tensorDic')
+						pprint(tensorDic)
+						print(key,params[2])
+						tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
+				except:
+					pass
+
+	key = 'c.out'
+	try :
+		params = layerDic[key]
+		candidateLayers = layerCall(tensorDic,params[1])
+		tensorDic[key] = params[0](candidateLayers)
+	except:
+		pass
+
 	key = 'output.Layer'
 	params = layerDic[key]
 	tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
 
 	return tensorDic
+
 
 def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
 	"""
@@ -54,6 +90,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
 	for t in range(T):
+		print('\n\n'+100*"="+'\niteration n.'+str(t)+'\n'+100*"=")
 		if t==0:
 			layerName = '0.0'
 			layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
@@ -62,12 +99,16 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			previousScore = 10000
 
 
-			symbolicTensorsDict = toSymbolicDict(layerDic)
+			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 			model.save_weights('w_'+pathToSaveModel)
 			model.save(pathToSaveModel)
+
+			plot_model(model,to_file='modelIt1.png',show_shapes=True)
+
+
 
 			with open('layerDic.pkl','wb') as dicFile:
 				dill.dump(layerDic,dicFile)
@@ -76,6 +117,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			k.clear_session()
 		else:
 			for rep in range(reps):
+				print('\n rep '+str(rep))
 
 				modelTest = load_model(pathToSaveModel)
 				previousDepth = getPreviousDepth(layerDic,t)
@@ -87,8 +129,11 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 					layersNamesToOutput = dill.load(f)
 				if rep > reps//2 :
 					currentDepth = previousDepth
+					print("staying at current level")
 				else :
 					currentDepth = previousDepth + 1
+					print("going deeper")
+
 				for depth in range (currentDepth):
 					layerName = str(depth)+'.'+str(t)
 					concatLayerName = 'c' + layerName
@@ -109,16 +154,25 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 						layersNamesToOutput.append(layerName)
 				# layersToOutput = layerCall(layerDic,layersNamesToOutput)
 				if len(layersNamesToOutput)>1 :
-					layerDic[concatOutName] = (concatenate,layersNamesToOutput)
+					layerDic[concatOutName] = (concatenate,list(set(layersNamesToOutput)))
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
 				else:
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
 
-				symbolicTensorsDict = toSymbolicDict(layerDic)
+				runthrough(t+1,currentDepth+1,layerDic)
+				symbolicTensorsDict = toSymbolicDict(t+1,currentDepth,layerDic)
 
 				model = Model(inputs=symbolicTensorsDict['feeding.Layer'], outputs=symbolicTensorsDict['output.Layer'])
 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+
+				print()
+				pprint([layer.name for layer in model.layers])
+
+				plot_model(model,to_file="modelIt"+str(t)+"Rep"+str(rep)+'.png',show_shapes=True)
+
+				model.layers[-1].name += 'temp'
 				model.load_weights('w_'+pathToSaveModel,by_name=True)
+				model.layers[-1].name = model.layers[-1].name[:-4]
 				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 
 				currentPredictions = classPrediction(model,x_test,proba_threshold)
@@ -126,8 +180,8 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 				if previousScore - currentScore > epsilon:
 					print("saving better model")
 					previousScore = currentScore
-					model.save(pathToSaveModel)
-					model.save_weights('w_'+pathToSaveModel)
+					model.save('best'+pathToSaveModel)
+					model.save_weights('best_w_'+pathToSaveModel)
 					with open('layersNamesToOutput.pkl', 'wb') as f:
 						dill.dump(layersNamesToOutput, f)
 					with open('layerDic.pkl', 'wb') as f:
@@ -135,82 +189,87 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 				k.clear_session()
 
 
-def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
-	"""
-	romain.gautron@agroparistech.fr
-	"""
-	layerDic = {}
-	layersNamesToOutput = []
-	concatOutName= 'c.output'
-	layerDic['feeding.Layer'] = Input(shape=(flattenDimIm,),name='feeding.Layer')
-	for t in range(T):
-		if t == 0:
-			layerName = '0.0'
-			layerDic[layerName] = Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
-			layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[layerName])
-			layersNamesToOutput.append(layerName)
-			previousScore = 10000
-			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-			model.save(pathToSaveModel)
-			with open('layersNamesToOutput.pkl', 'wb') as f:
-				dill.dump(layersNamesToOutput, f)
-			with open('layerDic.pkl', 'wb') as f:
-				dill.dump(layerDic, f)
-			k.clear_session()
-		else:
-			model = load_model(pathToSaveModel)
-			previousDepth = getPreviousDepth(layerDic,t)
-			previousPredictions = classPrediction(model,x_test,proba_threshold)
-			for rep in range(reps):
-				with open('layerDic.pkl', 'rb') as f:
-					layerDic = dill.load(f)
-				with open('layersNamesToOutput.pkl', 'rb') as f:
-					layersNamesToOutput = dill.load(f)
-				if rep > reps//2 :
-					currentDepth = previousDepth
-				else :
-					currentDepth = previousDepth + 1
-				for depth in range (currentDepth):
-					layerName = str(depth)+'.'+str(t)
-					concatLayerName = 'c' + layerName
-					if depth == 0 :
-						layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
-					else:
-						candidateNameList = selectCandidateLayers(layerDic,t,depth)
-						candidateNameList = drawing(candidateNameList)
-						layerBelowName = str(depth-1)+'.'+str(t)
-						candidateNameList.append(layerBelowName)
-						candidateNameList = list(set(candidateNameList))
-						candidateLayers = layerCall(layerDic,candidateNameList)
-						if len(candidateLayers)>1:
-							layerDic[concatLayerName] = concatenate(candidateLayers)
-							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic[concatLayerName])
-						else :
-							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(candidateLayers[0])
-					if depth == currentDepth-1:
-						layersNamesToOutput.append(layerName)
-				layersToOutput = layerCall(layerDic,layersNamesToOutput)
-				if len(layersToOutput)>1 :
-					layerDic[concatOutName] = concatenate(layersToOutput)
-					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[concatOutName])
-				else:
-					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
-				model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-
-				currentPredictions = classPrediction(model,x_test,proba_threshold)
-				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
-				if previousScore - currentScore > epsilon:
-					previousScore = currentScore
-					model.save(pathToSaveModel)
-					with open('layersNamesToOutput.pkl', 'wb') as f:
-						dill.dump(layersNamesToOutput, f)
-					with open('layerDic.pkl', 'wb') as f:
-						dill.dump(layerDic, f)
-				k.clear_session()
+# def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
+# 	"""
+# 	romain.gautron@agroparistech.fr
+# 	"""
+# 	layerDic = {}
+# 	layersNamesToOutput = []
+# 	concatOutName= 'c.output'
+# 	layerDic['feeding.Layer'] = Input(shape=(flattenDimIm,),name='feeding.Layer')
+# 	for t in range(T):
+# 		if t == 0:
+# 			layerName = '0.0'
+# 			layerDic[layerName] = Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
+# 			layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[layerName])
+# 			layersNamesToOutput.append(layerName)
+# 			previousScore = 10000
+# 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
+# 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+# 			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+# 			model.save(pathToSaveModel)
+# 			with open('layersNamesToOutput.pkl', 'wb') as f:
+# 				dill.dump(layersNamesToOutput, f)
+# 			with open('layerDic.pkl', 'wb') as f:
+# 				dill.dump(layerDic, f)
+# 			k.clear_session()
+# 		else:
+# 			model = load_model(pathToSaveModel)
+# 			previousDepth = getPreviousDepth(layerDic,t)
+# 			previousPredictions = classPrediction(model,x_test,proba_threshold)
+# 			for rep in range(reps):
+# 				with open('layerDic.pkl', 'rb') as f:
+# 					layerDic = dill.load(f)
+# 				with open('layersNamesToOutput.pkl', 'rb') as f:
+# 					layersNamesToOutput = dill.load(f)
+# 				if rep > reps//2 :
+# 					currentDepth = previousDepth
+# 					print('same layer')
+# 				else :
+# 					currentDepth = previousDepth + 1
+# 					print('going deeper')
+# 				for depth in range (currentDepth):
+# 					layerName = str(depth)+'.'+str(t)
+# 					concatLayerName = 'c' + layerName
+# 					if depth == 0 :
+# 						layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
+# 					else:
+# 						candidateNameList = selectCandidateLayers(layerDic,t,depth)
+# 						candidateNameList = drawing(candidateNameList)
+# 						layerBelowName = str(depth-1)+'.'+str(t)
+# 						candidateNameList.append(layerBelowName)
+# 						candidateNameList = list(set(candidateNameList))
+# 						candidateLayers = layerCall(layerDic,candidateNameList)
+# 						if len(candidateLayers)>1:
+# 							layerDic[concatLayerName] = concatenate(candidateLayers)
+# 							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic[concatLayerName])
+# 						else :
+# 							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(candidateLayers[0])
+# 					if depth == currentDepth-1:
+# 						layersNamesToOutput.append(layerName)
+# 				layersToOutput = layerCall(layerDic,layersNamesToOutput)
+# 				if len(layersToOutput)>1 :
+# 					layerDic[concatOutName] = concatenate(layersToOutput)
+# 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[concatOutName])
+# 				else:
+# 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
+# 				model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
+# 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
+# 				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+#
+# 				plot_model(model,to_file="modelFin.png",show_shapes=True)
+# 				currentPredictions = classPrediction(model,x_test,proba_threshold)
+# 				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
+# 				if previousScore - currentScore > epsilon:
+# 					print("better model found")
+# 					previousScore = currentScore
+# 					model.save(pathToSaveModel)
+# 					# model.save_weights('w_'+pathToSaveModel)
+# 					with open('layersNamesToOutput.pkl', 'wb') as f:
+# 						dill.dump(layersNamesToOutput, f)
+# 					with open('layerDic.pkl', 'wb') as f:
+# 						dill.dump(layerDic, f)
+# 				k.clear_session()
 
 # saving layerNamesToOut
 def drawing(candidatNames):
@@ -262,7 +321,7 @@ def objectiveFunction(trueLabels,previousPredictions,currentPredictions):
 	m = len(trueLabels)
 	result = 0
 	for i in range(m):
-		result += exp(1 - trueLabels[i]*previousPredictions[i]-trueLabels[i]*currentPredictions[i])
+		result += np.exp(1 - trueLabels[i]*previousPredictions[i]-trueLabels[i]*currentPredictions[i])
 		result = result/m
 	return result
 
@@ -271,8 +330,9 @@ def main():
 	imsize =  32
 	flattenDimIm = imsize*imsize*3
 	B = 10
-	T = 2
+	T = 10
 	lr = .0001
+	reps = 5
 	trainNum = 5000
 	testNum = 10
 	epochs = 10
@@ -289,9 +349,7 @@ def main():
 	x_train_reshaped = x_train.flatten().reshape(trainNum,flattenDimIm)/255
 	x_test_reshaped = x_test.flatten().reshape(testNum,flattenDimIm)/255
 
-	print(x_train_reshaped.shape)
-
-	builderNew(B,T,flattenDimIm,lr,1,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
+	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
 
 	# layer = Input(shape=(flattenDimIm,),name="input.layer")
 	# layer2 = Dense(B,activation = 'relu',name='0.0')(layer)
