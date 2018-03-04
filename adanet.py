@@ -16,31 +16,33 @@ from itertools import chain
 import dill
 from pprint import pprint
 import inspect
+import os
+from shutil import copyfile
 
 def runthrough(T,depth,layerDic):
-	print(100*"*")
+	print('\n\nrunthrough'+100*"*")
 	for rep in range(depth):
 		for t in range(T):
-			concatName = 'c'+str(rep)+'.'+str(t)
-			layerName = str(rep)+'.'+str(t)
-			print(concatName,layerName)
-			try:
-				print(layerDic[concatName])
-			except:
-				pass
-			try:
-				print(layerDic[layerName])
-			except:
-				pass
-
+			for prefix in ("c",""):
+				name = prefix+str(rep)+"."+str(t)
+				try:
+					print(name,layerDic[name])
+				except:
+					pass
+	for name in ("c.out",'output.Layer'):
+		try:
+			print(name,layerDic[name])
+		except:
+			pass
+	print('\n\n')
 def toSymbolicDict(T,depth,layerDic):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
 	tensorDic = {}
-	print('layerDic:')
-	pprint(layerDic)
-	print()
+	# print('layerDic:')
+	# pprint(layerDic)
+	# print()
 	key = "feeding.Layer"
 	params = layerDic[key]
 	tensorDic[key] = Input(shape=params[1]['shape'],name=key)
@@ -53,13 +55,13 @@ def toSymbolicDict(T,depth,layerDic):
 					params = layerDic[key]
 					if key[0] == 'c': #concatenating layer
 						print("bulding concat layer")
-						print(params[1])
+						# print(params[1])
 						candidateLayers = layerCall(tensorDic,params[1])
 						tensorDic[key] = params[0](candidateLayers)
 					elif key != 'output.Layer':
-						print('tensorDic')
-						pprint(tensorDic)
-						print(key,params[2])
+						# print('tensorDic')
+						# pprint(tensorDic)
+						# print(key,params[2])
 						tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
 				except:
 					pass
@@ -119,6 +121,15 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			for rep in range(reps):
 				print('\n rep '+str(rep))
 
+				if t>1:
+					copyfile(pathToSaveModel,str(t-1)+pathToSaveModel)
+					copyfile('w_'+pathToSaveModel,'w_'+str(t-1)+pathToSaveModel)
+					try:
+						os.rename('best_'+pathToSaveModel,pathToSaveModel)
+						os.rename('best_w_'+pathToSaveModel,'w_'+pathToSaveModel)
+					except:
+						pass
+
 				modelTest = load_model(pathToSaveModel)
 				previousDepth = getPreviousDepth(layerDic,t)
 				previousPredictions = classPrediction(modelTest,x_test,proba_threshold)
@@ -152,35 +163,33 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},candidateNameList[0])
 					if depth == currentDepth-1:
 						layersNamesToOutput.append(layerName)
-				# layersToOutput = layerCall(layerDic,layersNamesToOutput)
+
 				if len(layersNamesToOutput)>1 :
 					layerDic[concatOutName] = (concatenate,list(set(layersNamesToOutput)))
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
 				else:
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
 
-				runthrough(t+1,currentDepth+1,layerDic)
-				symbolicTensorsDict = toSymbolicDict(t+1,currentDepth,layerDic)
+				# runthrough(t+1,currentDepth+1,layerDic)
+				symbolicTensorsDict = toSymbolicDict(t+1,currentDepth+1,layerDic)
 
 				model = Model(inputs=symbolicTensorsDict['feeding.Layer'], outputs=symbolicTensorsDict['output.Layer'])
 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 
-				print()
-				pprint([layer.name for layer in model.layers])
-
-				plot_model(model,to_file="modelIt"+str(t)+"Rep"+str(rep)+'.png',show_shapes=True)
-
+				#input size of output layer changes so loading pre-existing weights is not possible
 				model.layers[-1].name += 'temp'
 				model.load_weights('w_'+pathToSaveModel,by_name=True)
 				model.layers[-1].name = model.layers[-1].name[:-4]
+
 				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
 
 				currentPredictions = classPrediction(model,x_test,proba_threshold)
 				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
 				if previousScore - currentScore > epsilon:
 					print("saving better model")
+					plot_model(model,to_file="modelIt"+str(t)+"Rep"+str(rep)+'.png',show_shapes=True)
 					previousScore = currentScore
-					model.save('best'+pathToSaveModel)
+					model.save('best_'+pathToSaveModel)
 					model.save_weights('best_w_'+pathToSaveModel)
 					with open('layersNamesToOutput.pkl', 'wb') as f:
 						dill.dump(layersNamesToOutput, f)
@@ -334,11 +343,11 @@ def main():
 	lr = .0001
 	reps = 5
 	trainNum = 5000
-	testNum = 10
-	epochs = 10
+	testNum = 1000
+	epochs = 50
 	batch_size = 100
 	NrandomModels  = 10
-	epsilon = .001
+	epsilon = .01
 	labels = [0,1]
 	proba_threshold = .5
 
@@ -351,21 +360,14 @@ def main():
 
 	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
 
-	# layer = Input(shape=(flattenDimIm,),name="input.layer")
-	# layer2 = Dense(B,activation = 'relu',name='0.0')(layer)
-    #
-	# pprint(vars(layer))
-	# pprint(vars(layer2))
-    #
-	# pprint(inspect.getmembers(layer))
-	# builder(B,T,flattenDimIm,lr,1,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
-	# plot_model(model,to_file='model.png',show_shapes=True)
-
-
-	# preds = model.predict(x_test_reshaped)
-    #
-	# for i in range(len(preds)):
-	# 	print(preds[i],y_test[i])
+	model = load_model(pathToSaveModel)
+	preds = model.predict(x_test_reshaped)
+	error = 0
+	for i in range(len(preds)):
+		# print(int(np.round(preds[i])),y_test[i])
+		if int(np.round(preds[i])) != y_test[i]:
+			error +=1
+	print("error:",error/testNum)
 
 if __name__ == '__main__':
 	main()
