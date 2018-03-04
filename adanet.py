@@ -326,13 +326,29 @@ def classPrediction(model,x,proba_threshold):
 			classes.append(-1)
 	return classes
 
-def objectiveFunction(trueLabels,previousPredictions,currentPredictions):
+def objectiveFunction(trueLabels,previousPredictionsRaw,currentPredictionsRaw):
+
+	previousPredictions = oppositeEncoding(previousPredictionsRaw)
+	currentPredictions = oppositeEncoding(previousPredictionsRaw)
+
 	m = len(trueLabels)
 	result = 0
 	for i in range(m):
 		result += np.exp(1 - trueLabels[i]*previousPredictions[i]-trueLabels[i]*currentPredictions[i])
 		result = result/m
 	return result
+
+def binaryEncoding(y_vect):
+	"""
+	encodes two classes as labels 0 and 1
+	"""
+	return np.array([0 if i==y_vect[0] else 1 for i in y_vect])
+
+def oppositeEncoding(y_vect):
+	"""
+	encodes 0 and 1 as -1 and 1 for real values and predictions
+	"""
+	return np.array([-1 if int(round(i))==0 else 1 for i in y_vect])
 
 def main():
 	pathToSaveModel = 'bestModel.h5'
@@ -343,13 +359,19 @@ def main():
 	lr = .0001
 	reps = 5
 	trainNum = 5000
-	testNum = 1000
+	testNum = 10
 	epochs = 50
 	batch_size = 100
 	NrandomModels  = 10
 	epsilon = .01
-	labels = [0,1]
+	labels = [1,2]
 	proba_threshold = .5
+
+	if len(labels)>2 or labels[0]==labels[1]:
+		raise ValueError('labels must be array of 2 distinct values')
+	for i in range(2):
+		if labels[i] <0 or labels[i]>9:
+			raise ValueError('label value must be between 0 and 9 included')
 
 	train, test = dp.loadRawData()
 	x_train, y_train = dp.loadTrainingData(train,labels,trainNum)
@@ -358,9 +380,15 @@ def main():
 	x_train_reshaped = x_train.flatten().reshape(trainNum,flattenDimIm)/255
 	x_test_reshaped = x_test.flatten().reshape(testNum,flattenDimIm)/255
 
+	y_train = binaryEncoding(y_train)
+	y_test = binaryEncoding(y_test)
+
 	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
 
 	model = load_model(pathToSaveModel)
+
+	plot_model(model,to_file="finalModel.png",show_shapes=True)
+
 	preds = model.predict(x_test_reshaped)
 	error = 0
 	for i in range(len(preds)):
@@ -368,6 +396,7 @@ def main():
 		if int(np.round(preds[i])) != y_test[i]:
 			error +=1
 	print("error:",error/testNum)
+
 
 if __name__ == '__main__':
 	main()
