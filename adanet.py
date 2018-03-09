@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 14:18:17
+# @Last Modified time: 2018-03-09 16:05:53
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -296,14 +296,14 @@ def main():
 	pathToSaveModel = 'bestModel.h5'
 	imsize =  32
 	flattenDimIm = imsize*imsize*3
-	B = 10
+	B = 200
 	T = 10
 	lr = .0001
 	reps = 5
 	trainNum = 5000
-	testNum = 10
-	epochs = 10
-	batchSize = 100
+	testNum = 1000
+	epochs = 10000
+	batchSize = 32
 	NrandomModels  = 10
 	epsilon = .0001
 	labels = [1,2]
