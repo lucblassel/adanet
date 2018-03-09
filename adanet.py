@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:12:52
+# @Last Modified time: 2018-03-09 19:16:11
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -21,7 +21,7 @@ import os
 from shutil import copyfile
 
 class StopEarly(Callback):
-	def __init__(self,threshold,metric="val_acc",verbsose = True):
+	def __init__(self,threshold,metric="val_acc",verbose = True):
 		super(StopEarly,self).__init__()
 		self.threshold = threshold
 		self.metric = metric
