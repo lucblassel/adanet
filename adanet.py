@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-02 14:54:09
+# @Last Modified time: 2018-03-09 14:18:17
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
@@ -81,7 +81,7 @@ def toSymbolicDict(T,depth,layerDic):
 	return tensorDic
 
 
-def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
+def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold,handleMultipleInput):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
@@ -98,8 +98,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
 			layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layerName)
 			layersNamesToOutput.append(layerName)
-			previousScore = 10000
-
+			previousScore = float('Inf')
 
 			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
@@ -109,8 +108,6 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			model.save(pathToSaveModel)
 
 			plot_model(model,to_file='modelIt1.png',show_shapes=True)
-
-
 
 			with open('layerDic.pkl','wb') as dicFile:
 				dill.dump(layerDic,dicFile)
@@ -157,7 +154,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 						candidateNameList.append(layerBelowName)
 						candidateNameList = list(set(candidateNameList))
 						if len(candidateNameList)>1:
-							layerDic[concatLayerName] = (concatenate,candidateNameList)
+							layerDic[concatLayerName] = (handleMultipleInput,candidateNameList)
 							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},concatLayerName)
 						else :
 							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},candidateNameList[0])
@@ -165,7 +162,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 						layersNamesToOutput.append(layerName)
 
 				if len(layersNamesToOutput)>1 :
-					layerDic[concatOutName] = (concatenate,list(set(layersNamesToOutput)))
+					layerDic[concatOutName] = (handleMultipleInput,list(set(layersNamesToOutput)))
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
 				else:
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
@@ -366,6 +363,7 @@ def main():
 	epsilon = .01
 	labels = [1,2]
 	proba_threshold = .5
+	handleMultipleInput = concatenate
 
 	if len(labels)>2 or labels[0]==labels[1]:
 		raise ValueError('labels must be array of 2 distinct values')
@@ -383,7 +381,7 @@ def main():
 	y_train = binaryEncoding(y_train)
 	y_test = binaryEncoding(y_test)
 
-	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
+	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold,handleMultipleInput)
 
 	model = load_model(pathToSaveModel)
 
