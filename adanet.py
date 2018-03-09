@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 16:36:48
+# @Last Modified time: 2018-03-09 19:04:06
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -21,15 +21,15 @@ import os
 from shutil import copyfile
 
 class StopEarly(keras.callbacks.Callback):
-    def __init__(self,threshold,metric="val_acc",verbsose = True):
-        super(callbackBoosting,self).__init__()
-        self.threshold = threshold
-        self.metric = metric
+	def __init__(self,threshold,metric="val_acc",verbsose = True):
+		super(callbackBoosting,self).__init__()
+		self.threshold = threshold
+		self.metric = metric
 		self.last_value = 0
 		self.stopped_epoch = 0
 		self.verbose = verbose
 
-    def on_epoch_end(self, epoch, logs=None):
+	def on_epoch_end(self, epoch, logs=None):
 		current = logs.get(self.metric)
 		if logs.get(self.metric) - self.last_value < threshold:
 			self.model.stop_training = True
@@ -276,7 +276,7 @@ def selectCandidateLayers(layerDic,t,c):
 			if depth_int == c-1 :
 				candidateList.append(layerName)
 		except :
-		    pass
+			pass
 	return candidateList
 
 def layerCall(dic,keys):
