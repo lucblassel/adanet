@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:27:56
+# @Last Modified time: 2018-03-09 19:30:16
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -29,7 +29,7 @@ class StopEarly(Callback):
 		self.stopped_epoch = 0
 		self.verbose = verbose
 
-	def on_epoch_end(self, epoch, logs=None):
+	def on_epoch_end(self, epoch, logs={}):
 		current = logs.get(self.metric)
 		if logs.get(self.metric) - self.last_value < self.threshold:
 			self.model.stop_training = True
