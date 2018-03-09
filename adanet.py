@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:16:11
+# @Last Modified time: 2018-03-09 19:22:39
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -138,7 +138,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-			model.fit(x=xTrain,y=yTrain,epochs=epochs,batch_size=batchSize,verbose=1)
+			model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 			model.save_weights('w_'+pathToSaveModel)
 			model.save(pathToSaveModel)
 
