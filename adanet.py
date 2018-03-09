@@ -2,14 +2,9 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-<<<<<<< HEAD
-# @Last Modified time: 2018-03-02 14:54:09
-
-=======
 # @Last Modified time: 2018-03-09 14:18:17
->>>>>>> 641c99eecb93aa1adec7594c3333c06da2355cec
 import numpy as np
-from keras.layers import Input, Dense, concatenate
+from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
 from keras.utils import plot_model
 from keras import backend as k
@@ -60,18 +55,22 @@ def toSymbolicDict(T,depth,layerDic):
 				key = prefix+str(rep)+'.'+str(t)
 				try:
 					params = layerDic[key]
+					# print("\n\n\nconsidered layer:",key)
 					if key[0] == 'c': #concatenating layer
 						print("bulding concat layer")
 						# print(params[1])
 						candidateLayers = layerCall(tensorDic,params[1])
 						tensorDic[key] = params[0](candidateLayers)
 					elif key != 'output.Layer':
+						# print()
+						# pprint(layerDic)
 						# print('tensorDic')
 						# pprint(tensorDic)
-						# print(key,params[2])
+						# print(params)
 						tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
 				except:
 					pass
+
 
 	key = 'c.out'
 	try :
@@ -81,18 +80,18 @@ def toSymbolicDict(T,depth,layerDic):
 	except:
 		pass
 
+
 	key = 'output.Layer'
 	params = layerDic[key]
+	# pprint(layerDic)
+	# print('tensorDic')
+	# pprint(tensorDic)
 	tensorDic[key] = params[0](params[1]['units'],activation=params[1]['activation'],name=key)(tensorDic[params[2]])
 
 	return tensorDic
 
 
-<<<<<<< HEAD
-def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold):
-=======
-def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold,handleMultipleInput):
->>>>>>> 641c99eecb93aa1adec7594c3333c06da2355cec
+def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
@@ -158,7 +157,16 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 
 				for depth in range (currentDepth):
 					layerName = str(depth)+'.'+str(t)
+
 					concatLayerName = 'c' + layerName
+					if handleMultipleInput == 'concatenate':
+						functionChoice = concatenate
+						print(functionChoice)
+					elif handleMultipleInput == 'add':
+						functionChoice = add
+					else:
+						raise ValueError("handleMultipleInput must have a value in ('concatenate','add')")
+
 					if depth == 0 :
 						layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
 					else:
@@ -168,7 +176,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 						candidateNameList.append(layerBelowName)
 						candidateNameList = list(set(candidateNameList))
 						if len(candidateNameList)>1:
-							layerDic[concatLayerName] = (handleMultipleInput,candidateNameList)
+							layerDic[concatLayerName] = (functionChoice,candidateNameList)
 							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},concatLayerName)
 						else :
 							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},candidateNameList[0])
@@ -176,7 +184,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 						layersNamesToOutput.append(layerName)
 
 				if len(layersNamesToOutput)>1 :
-					layerDic[concatOutName] = (handleMultipleInput,list(set(layersNamesToOutput)))
+					layerDic[concatOutName] = (functionChoice,list(set(layersNamesToOutput)))
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
 				else:
 					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
@@ -188,9 +196,12 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
 
 				#input size of output layer changes so loading pre-existing weights is not possible
-				model.layers[-1].name += 'temp'
-				model.load_weights('w_'+pathToSaveModel,by_name=True)
-				model.layers[-1].name = model.layers[-1].name[:-4]
+				if handleMultipleInput == 'concatenate':
+					model.layers[-1].name += 'temp'
+					model.load_weights('w_'+pathToSaveModel,by_name=True)
+					model.layers[-1].name = model.layers[-1].name[:-4]
+				else:
+					model.load_weights('w_'+pathToSaveModel,by_name=True)
 
 				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 
@@ -291,17 +302,13 @@ def main():
 	reps = 5
 	trainNum = 5000
 	testNum = 10
-	epochs = 10000
+	epochs = 10
 	batchSize = 100
 	NrandomModels  = 10
 	epsilon = .0001
 	labels = [1,2]
-<<<<<<< HEAD
 	probaThreshold = .5
-=======
-	proba_threshold = .5
-	handleMultipleInput = concatenate
->>>>>>> 641c99eecb93aa1adec7594c3333c06da2355cec
+	handleMultipleInput = "add"
 
 	if len(labels)>2 or labels[0]==labels[1]:
 		raise ValueError('labels must be array of 2 distinct values')
@@ -319,11 +326,7 @@ def main():
 	yTrain = binaryEncoding(yTrain)
 	yTest = binaryEncoding(yTest)
 
-<<<<<<< HEAD
-	builderNew(B,T,flattenDimIm,lr,reps,xTrainReshaped,yTrain[:trainNum],xTestReshaped,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold)
-=======
-	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold,handleMultipleInput)
->>>>>>> 641c99eecb93aa1adec7594c3333c06da2355cec
+	builderNew(B,T,flattenDimIm,lr,reps,xTrainReshaped,yTrain[:trainNum],xTestReshaped,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput)
 
 	model = load_model(pathToSaveModel)
 
