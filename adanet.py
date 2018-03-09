@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:04:06
+# @Last Modified time: 2018-03-09 19:08:12
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -10,7 +10,7 @@ from keras.utils import plot_model
 from keras import backend as k
 from keras import optimizers
 from keras.datasets import cifar10
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, Callback
 import dataProcessing as dp
 import copy as cp
 from itertools import chain
@@ -20,7 +20,7 @@ import inspect
 import os
 from shutil import copyfile
 
-class StopEarly(keras.callbacks.Callback):
+class StopEarly(Callback):
 	def __init__(self,threshold,metric="val_acc",verbsose = True):
 		super(callbackBoosting,self).__init__()
 		self.threshold = threshold
