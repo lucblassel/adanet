@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 16:05:53
+# @Last Modified time: 2018-03-09 16:36:48
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -95,11 +95,12 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 	"""
 	luc.blassel@agroparistech.fr
 	"""
+	count = 1
 	layerDic = {}
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
-	earlyStopping = EarlyStopping(monitor="val_loss",patience=5)
+	earlyStopping = EarlyStopping(monitor="val_acc",patience=5)
 
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
@@ -203,8 +204,9 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 				else:
 					model.load_weights('w_'+pathToSaveModel,by_name=True)
 
-				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
-
+				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=0)
+				print("fitted model number ",count)
+				c += 1
 				currentPredictions = classPrediction(model,xTest,probaThreshold)
 				currentScore = objectiveFunction(yTest,previousPredictions,currentPredictions)
 				if previousScore - currentScore > epsilon:
@@ -222,6 +224,10 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 			if not changed:
 				print("model not improved at iteration",t,"stopping early")
 				return
+	bestModel = load_model('best_'+pathToSaveModel)
+	print(bestModel.metric_names)
+	print("Test metrics : ",bestModel.evaluate(xTest,yTest,verbose=0))
+	k.clear_session()
 
 def drawing(candidatNames):
 	numberToDraw = np.random.randint(0, len(candidatNames))
