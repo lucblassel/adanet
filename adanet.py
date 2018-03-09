@@ -20,6 +20,27 @@ import inspect
 import os
 from shutil import copyfile
 
+class StopEarly(keras.callbacks.Callback):
+    def __init__(self,threshold,metric="val_acc",verbsose = True):
+        super(callbackBoosting,self).__init__()
+        self.threshold = threshold
+        self.metric = metric
+		self.last_value = 0
+		self.stopped_epoch = 0
+		self.verbose = verbose
+
+    def on_epoch_end(self, epoch, logs=None):
+		current = logs.get(self.metric)
+		if logs.get(self.metric) - self.last_value < threshold:
+			self.model.stop_training = True
+			self.stopped_epoch = epoch
+		self.last_value = current
+
+	def on_train_end(self):
+		if self.stopped_epoch > 0 and self.verbose:
+			print("model stopped training on epoch",self.stopped_epoch)
+
+
 def runthrough(T,depth,layerDic):
 	print('\n\nrunthrough'+100*"*")
 	for rep in range(depth):
@@ -100,7 +121,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
-	earlyStopping = EarlyStopping(monitor="val_acc",patience=5)
+	earlyStopping = StopEarly(0.001,"val_acc",True)
 
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
