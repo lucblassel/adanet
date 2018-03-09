@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:30:16
+# @Last Modified time: 2018-03-09 19:36:53
 import numpy as np
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
@@ -36,7 +36,7 @@ class StopEarly(Callback):
 			self.stopped_epoch = epoch
 		self.last_value = current
 
-	def on_train_end(self):
+	def on_train_end(self, log={}):
 		if self.stopped_epoch > 0 and self.verbose:
 			print("model stopped training on epoch",self.stopped_epoch)
 
