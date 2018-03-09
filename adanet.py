@@ -3,6 +3,7 @@
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
 # @Last Modified time: 2018-03-02 14:54:09
+
 import numpy as np
 from keras.layers import Input, Dense, concatenate
 from keras.models import Model, load_model
@@ -10,6 +11,7 @@ from keras.utils import plot_model
 from keras import backend as k
 from keras import optimizers
 from keras.datasets import cifar10
+from keras.callbacks import EarlyStopping
 import dataProcessing as dp
 import copy as cp
 from itertools import chain
@@ -35,6 +37,7 @@ def runthrough(T,depth,layerDic):
 		except:
 			pass
 	print('\n\n')
+
 def toSymbolicDict(T,depth,layerDic):
 	"""
 	luc.blassel@agroparistech.fr
@@ -81,7 +84,7 @@ def toSymbolicDict(T,depth,layerDic):
 	return tensorDic
 
 
-def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
+def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
@@ -89,9 +92,12 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
+	earlyStopping = EarlyStopping(monitor="val_loss",patience=5)
+
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
 	for t in range(T):
+		changed = False #boolean to track if the base model is changed (improved)
 		print('\n\n'+100*"="+'\niteration n.'+str(t)+'\n'+100*"=")
 		if t==0:
 			layerName = '0.0'
@@ -104,7 +110,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+			model.fit(x=xTrain,y=yTrain,epochs=epochs,batch_size=batchSize,verbose=1)
 			model.save_weights('w_'+pathToSaveModel)
 			model.save(pathToSaveModel)
 
@@ -132,7 +138,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 
 				modelTest = load_model(pathToSaveModel)
 				previousDepth = getPreviousDepth(layerDic,t)
-				previousPredictions = classPrediction(modelTest,x_test,proba_threshold)
+				previousPredictions = classPrediction(modelTest,xTest,probaThreshold)
 
 				with open('layerDic.pkl', 'rb') as f:
 					layerDic = dill.load(f)
@@ -181,12 +187,13 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 				model.load_weights('w_'+pathToSaveModel,by_name=True)
 				model.layers[-1].name = model.layers[-1].name[:-4]
 
-				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
+				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 
-				currentPredictions = classPrediction(model,x_test,proba_threshold)
-				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
+				currentPredictions = classPrediction(model,xTest,probaThreshold)
+				currentScore = objectiveFunction(yTest,previousPredictions,currentPredictions)
 				if previousScore - currentScore > epsilon:
 					print("saving better model")
+					changed = True
 					plot_model(model,to_file="modelIt"+str(t)+"Rep"+str(rep)+'.png',show_shapes=True)
 					previousScore = currentScore
 					model.save('best_'+pathToSaveModel)
@@ -196,91 +203,10 @@ def builderNew(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,bat
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
 				k.clear_session()
+			if not changed:
+				print("model not improved at iteration",t,"stopping early")
+				return
 
-
-# def builder(B,T,flattenDimIm,lr,reps,x_train,y_train,x_test,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold):
-# 	"""
-# 	romain.gautron@agroparistech.fr
-# 	"""
-# 	layerDic = {}
-# 	layersNamesToOutput = []
-# 	concatOutName= 'c.output'
-# 	layerDic['feeding.Layer'] = Input(shape=(flattenDimIm,),name='feeding.Layer')
-# 	for t in range(T):
-# 		if t == 0:
-# 			layerName = '0.0'
-# 			layerDic[layerName] = Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
-# 			layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[layerName])
-# 			layersNamesToOutput.append(layerName)
-# 			previousScore = 10000
-# 			model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-# 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-# 			model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-# 			model.save(pathToSaveModel)
-# 			with open('layersNamesToOutput.pkl', 'wb') as f:
-# 				dill.dump(layersNamesToOutput, f)
-# 			with open('layerDic.pkl', 'wb') as f:
-# 				dill.dump(layerDic, f)
-# 			k.clear_session()
-# 		else:
-# 			model = load_model(pathToSaveModel)
-# 			previousDepth = getPreviousDepth(layerDic,t)
-# 			previousPredictions = classPrediction(model,x_test,proba_threshold)
-# 			for rep in range(reps):
-# 				with open('layerDic.pkl', 'rb') as f:
-# 					layerDic = dill.load(f)
-# 				with open('layersNamesToOutput.pkl', 'rb') as f:
-# 					layersNamesToOutput = dill.load(f)
-# 				if rep > reps//2 :
-# 					currentDepth = previousDepth
-# 					print('same layer')
-# 				else :
-# 					currentDepth = previousDepth + 1
-# 					print('going deeper')
-# 				for depth in range (currentDepth):
-# 					layerName = str(depth)+'.'+str(t)
-# 					concatLayerName = 'c' + layerName
-# 					if depth == 0 :
-# 						layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic['feeding.Layer'])
-# 					else:
-# 						candidateNameList = selectCandidateLayers(layerDic,t,depth)
-# 						candidateNameList = drawing(candidateNameList)
-# 						layerBelowName = str(depth-1)+'.'+str(t)
-# 						candidateNameList.append(layerBelowName)
-# 						candidateNameList = list(set(candidateNameList))
-# 						candidateLayers = layerCall(layerDic,candidateNameList)
-# 						if len(candidateLayers)>1:
-# 							layerDic[concatLayerName] = concatenate(candidateLayers)
-# 							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(layerDic[concatLayerName])
-# 						else :
-# 							layerDic[layerName]=Dense(B, activation='relu',name=layerName)(candidateLayers[0])
-# 					if depth == currentDepth-1:
-# 						layersNamesToOutput.append(layerName)
-# 				layersToOutput = layerCall(layerDic,layersNamesToOutput)
-# 				if len(layersToOutput)>1 :
-# 					layerDic[concatOutName] = concatenate(layersToOutput)
-# 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output.Layer')(layerDic[concatOutName])
-# 				else:
-# 					layerDic['output.Layer'] = Dense(1, activation='sigmoid',name='output')(layersToOutput[0])
-# 				model = Model(inputs=layerDic['feeding.Layer'], outputs=layerDic['output.Layer'])
-# 				model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-# 				model.fit(x=x_train,y=y_train,epochs=epochs,batch_size=batch_size,verbose=1)
-#
-# 				plot_model(model,to_file="modelFin.png",show_shapes=True)
-# 				currentPredictions = classPrediction(model,x_test,proba_threshold)
-# 				currentScore = objectiveFunction(y_test,previousPredictions,currentPredictions)
-# 				if previousScore - currentScore > epsilon:
-# 					print("better model found")
-# 					previousScore = currentScore
-# 					model.save(pathToSaveModel)
-# 					# model.save_weights('w_'+pathToSaveModel)
-# 					with open('layersNamesToOutput.pkl', 'wb') as f:
-# 						dill.dump(layersNamesToOutput, f)
-# 					with open('layerDic.pkl', 'wb') as f:
-# 						dill.dump(layerDic, f)
-# 				k.clear_session()
-
-# saving layerNamesToOut
 def drawing(candidatNames):
 	numberToDraw = np.random.randint(0, len(candidatNames))
 	result = np.random.choice(candidatNames, size=numberToDraw, replace=False)
@@ -314,9 +240,9 @@ def layerCall(dic,keys):
 	return [dic[key] for key in keys]
 
 
-def classPrediction(model,x,proba_threshold):
+def classPrediction(model,x,probaThreshold):
 	probas = np.array(model.predict(x))
-	booleans = probas >= proba_threshold
+	booleans = probas >= probaThreshold
 	booleans = list(chain(*booleans))
 	classes = []
 	for boolean in booleans:
@@ -360,12 +286,12 @@ def main():
 	reps = 5
 	trainNum = 5000
 	testNum = 10
-	epochs = 50
-	batch_size = 100
+	epochs = 10000
+	batchSize = 100
 	NrandomModels  = 10
-	epsilon = .01
+	epsilon = .0001
 	labels = [1,2]
-	proba_threshold = .5
+	probaThreshold = .5
 
 	if len(labels)>2 or labels[0]==labels[1]:
 		raise ValueError('labels must be array of 2 distinct values')
@@ -374,26 +300,26 @@ def main():
 			raise ValueError('label value must be between 0 and 9 included')
 
 	train, test = dp.loadRawData()
-	x_train, y_train = dp.loadTrainingData(train,labels,trainNum)
-	x_test, y_test = dp.loadTestingData(test,labels,testNum)
+	xTrain, yTrain = dp.loadTrainingData(train,labels,trainNum)
+	xTest, yTest = dp.loadTestingData(test,labels,testNum)
 
-	x_train_reshaped = x_train.flatten().reshape(trainNum,flattenDimIm)/255
-	x_test_reshaped = x_test.flatten().reshape(testNum,flattenDimIm)/255
+	xTrainReshaped = xTrain.flatten().reshape(trainNum,flattenDimIm)/255
+	xTestReshaped = xTest.flatten().reshape(testNum,flattenDimIm)/255
 
-	y_train = binaryEncoding(y_train)
-	y_test = binaryEncoding(y_test)
+	yTrain = binaryEncoding(yTrain)
+	yTest = binaryEncoding(yTest)
 
-	builderNew(B,T,flattenDimIm,lr,reps,x_train_reshaped,y_train[:trainNum],x_test_reshaped,y_test,epochs,batch_size,NrandomModels,epsilon,pathToSaveModel,proba_threshold)
+	builderNew(B,T,flattenDimIm,lr,reps,xTrainReshaped,yTrain[:trainNum],xTestReshaped,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold)
 
 	model = load_model(pathToSaveModel)
 
 	plot_model(model,to_file="finalModel.png",show_shapes=True)
 
-	preds = model.predict(x_test_reshaped)
+	preds = model.predict(xTestReshaped)
 	error = 0
 	for i in range(len(preds)):
-		# print(int(np.round(preds[i])),y_test[i])
-		if int(np.round(preds[i])) != y_test[i]:
+		# print(int(np.round(preds[i])),yTest[i])
+		if int(np.round(preds[i])) != yTest[i]:
 			error +=1
 	print("error:",error/testNum)
 
