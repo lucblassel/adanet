@@ -3,25 +3,28 @@
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
 # @Last Modified time: 2018-03-09 19:36:53
-import numpy as np
+
 import keras
+import inspect
+import os
+import dill
+
+import numpy as np
+import dataProcessing as dp
+import copy as cp
+
+from keras import backend as k
+from keras import optimizers
+from keras.callbacks import EarlyStopping, Callback
+from keras.datasets import cifar10
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
 from keras.utils import plot_model
-from keras import backend as k
-from keras import optimizers
-from keras.datasets import cifar10
-from keras.callbacks import EarlyStopping, Callback
 from keras.regularizers import l1
-import dataProcessing as dp
-import copy as cp
 from itertools import chain
-import dill
 from pprint import pprint
-import inspect
-import os
 from shutil import copyfile
-import time
+
 
 class StopEarly(Callback):
 	def __init__(self,threshold,metric="val_acc",verbose = True):
@@ -124,7 +127,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
-	earlyStopping = StopEarly(0.001,"val_acc",True)
+	earlyStopping = StopEarly(0.00001,"val_acc",True)
 
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
@@ -229,7 +232,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 				else:
 					model.load_weights('w_'+pathToSaveModel,by_name=True)
 
-				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=0)
+				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 				print("fitted model number ",count)
 				count += 1
 				currentPredictions = classPrediction(model,xTest,probaThreshold)
@@ -328,7 +331,7 @@ def main():
 	flattenDimIm = imsize*imsize*3
 	B = 150
 	T = 10
-	lr = .001
+	lr = .0001
 	reps = 5
 	trainNum = 5000
 	testNum = 1000
@@ -336,7 +339,7 @@ def main():
 	batchSize = 32
 	NrandomModels  = 10
 	epsilon = .0001
-	labels = [1,2]
+	labels = [1,2] #automobile/bird
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
