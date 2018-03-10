@@ -46,7 +46,7 @@ class StopEarly(Callback):
 			else:
 				self.notChanged +=1
 		else:
-			self.notChanged = 0	
+			self.notChanged = 0
 		self.last_value = current
 
 	def on_train_end(self, log={}):
@@ -134,7 +134,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
-	earlyStopping = StopEarly(0.00001,"val_acc",True)
+	earlyStopping = StopEarly(0.0001,"val_acc",True)
 
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
@@ -346,7 +346,7 @@ def main():
 	batchSize = 32
 	NrandomModels  = 10
 	epsilon = .0001
-	labels = [1,2] #automobile/bird
+	labels = [3,5] #cat/dog
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
