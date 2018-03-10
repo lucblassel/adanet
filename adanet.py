@@ -246,8 +246,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 						dill.dump(layersNamesToOutput, f)
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
-				k.clear_session()
-				print("\n\n currentScore: ",currentScore,'\n\n')
+				k.clear_session()S
 			if not changed:
 				print("model not improved at iteration",t,"stopping early")
 				return
@@ -274,7 +273,7 @@ def getPreviousDepth(layerDic,t):
 	return previousDepth + 1
 
 def selectCandidateLayers(layerDic,t,c):
-	
+
 	candidateList = []
 	for layerName in layerDic.keys():
 		depth,iteration = layerName.split('.')
