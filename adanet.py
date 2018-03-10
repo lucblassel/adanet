@@ -4,6 +4,7 @@
 # @Last Modified by:   romaingautronapt
 # @Last Modified time: 2018-03-09 16:36:48
 import numpy as np
+import keras
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
 from keras.utils import plot_model
@@ -21,17 +22,17 @@ import os
 from shutil import copyfile
 
 class StopEarly(keras.callbacks.Callback):
-    def __init__(self,threshold,metric="val_acc",verbsose = True):
-        super(callbackBoosting,self).__init__()
-        self.threshold = threshold
-        self.metric = metric
+	def __init__(self,threshold,metric="val_acc",verbose = True):
+		super(StopEarly,self).__init__()
+		self.threshold = threshold
+		self.metric = metric
 		self.last_value = 0
 		self.stopped_epoch = 0
 		self.verbose = verbose
 
-    def on_epoch_end(self, epoch, logs=None):
+	def on_epoch_end(self, epoch, logs=None):
 		current = logs.get(self.metric)
-		if logs.get(self.metric) - self.last_value < threshold:
+		if logs.get(self.metric) - self.last_value < self.threshold:
 			self.model.stop_training = True
 			self.stopped_epoch = epoch
 		self.last_value = current
