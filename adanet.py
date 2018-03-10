@@ -12,6 +12,7 @@ from keras import backend as k
 from keras import optimizers
 from keras.datasets import cifar10
 from keras.callbacks import EarlyStopping, Callback
+from keras.regularizers import l1
 import dataProcessing as dp
 import copy as cp
 from itertools import chain
@@ -20,6 +21,7 @@ from pprint import pprint
 import inspect
 import os
 from shutil import copyfile
+import time
 
 class StopEarly(Callback):
 	def __init__(self,threshold,metric="val_acc",verbose = True):
@@ -79,7 +81,7 @@ def toSymbolicDict(T,depth,layerDic):
 					params = layerDic[key]
 					# print("\n\n\nconsidered layer:",key)
 					if key[0] == 'c': #concatenating layer
-						print("bulding concat layer")
+						# print("bulding concat layer")
 						# print(params[1])
 						candidateLayers = layerCall(tensorDic,params[1])
 						tensorDic[key] = params[0](candidateLayers)
@@ -113,7 +115,7 @@ def toSymbolicDict(T,depth,layerDic):
 	return tensorDic
 
 
-def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput):
+def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput,lambda1):
 	"""
 	luc.blassel@agroparistech.fr
 	"""
@@ -131,8 +133,8 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 		print('\n\n'+100*"="+'\niteration n.'+str(t)+'\n'+100*"=")
 		if t==0:
 			layerName = '0.0'
-			layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},'feeding.Layer')
-			layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layerName)
+			layerDic[layerName] = (Dense,{'units':B,'activation':'relu','kernel_regularizer':l1(lambda1),'name':layerName},'feeding.Layer')
+			layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','kernel_regularizer':l1(lambda1),'name':'output.Layer'},layerName)
 			layersNamesToOutput.append(layerName)
 			previousScore = float('Inf')
 
@@ -151,19 +153,21 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 				dill.dump(layersNamesToOutput,outFile)
 			k.clear_session()
 		else:
+
+			if t>1:
+				copyfile(pathToSaveModel,str(t-1)+pathToSaveModel)
+				copyfile('w_'+pathToSaveModel,'w_'+str(t-1)+pathToSaveModel)
+				try:
+					os.rename('best_'+pathToSaveModel,pathToSaveModel)
+					os.rename('best_w_'+pathToSaveModel,'w_'+pathToSaveModel)
+				except:
+					pass
+
 			for rep in range(reps):
 				print('\n rep '+str(rep))
 
-				if t>1:
-					copyfile(pathToSaveModel,str(t-1)+pathToSaveModel)
-					copyfile('w_'+pathToSaveModel,'w_'+str(t-1)+pathToSaveModel)
-					try:
-						os.rename('best_'+pathToSaveModel,pathToSaveModel)
-						os.rename('best_w_'+pathToSaveModel,'w_'+pathToSaveModel)
-					except:
-						pass
-
 				modelTest = load_model(pathToSaveModel)
+				plot_model(modelTest,to_file='modeltest'+str(rep)+'.png',show_shapes=True)
 				previousDepth = getPreviousDepth(layerDic,t)
 				previousPredictions = classPrediction(modelTest,xTest,probaThreshold)
 
@@ -184,7 +188,6 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 					concatLayerName = 'c' + layerName
 					if handleMultipleInput == 'concatenate':
 						functionChoice = concatenate
-						print(functionChoice)
 					elif handleMultipleInput == 'add':
 						functionChoice = add
 					else:
@@ -200,17 +203,17 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 						candidateNameList = list(set(candidateNameList))
 						if len(candidateNameList)>1:
 							layerDic[concatLayerName] = (functionChoice,candidateNameList)
-							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},concatLayerName)
+							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','kernel_regularizer':l1(lambda1),'name':layerName},concatLayerName)
 						else :
-							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','name':layerName},candidateNameList[0])
+							layerDic[layerName] = (Dense,{'units':B,'activation':'relu','kernel_regularizer':l1(lambda1),'name':layerName},candidateNameList[0])
 					if depth == currentDepth-1:
 						layersNamesToOutput.append(layerName)
 
 				if len(layersNamesToOutput)>1 :
 					layerDic[concatOutName] = (functionChoice,list(set(layersNamesToOutput)))
-					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},concatOutName)
+					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','kernel_regularizer':l1(lambda1),'name':'output.Layer'},concatOutName)
 				else:
-					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','name':'output.Layer'},layersNamesToOutput[0])
+					layerDic['output.Layer'] = (Dense,{'units':1,'activation':'sigmoid','kernel_regularizer':l1(lambda1),'name':'output.Layer'},layersNamesToOutput[0])
 
 				# runthrough(t+1,currentDepth+1,layerDic)
 				symbolicTensorsDict = toSymbolicDict(t+1,currentDepth+1,layerDic)
@@ -231,6 +234,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 				count += 1
 				currentPredictions = classPrediction(model,xTest,probaThreshold)
 				currentScore = objectiveFunction(yTest,previousPredictions,currentPredictions)
+
 				if previousScore - currentScore > epsilon:
 					print("saving better model")
 					changed = True
@@ -243,6 +247,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
 				k.clear_session()
+				print("\n\n currentScore: ",currentScore,'\n\n')
 			if not changed:
 				print("model not improved at iteration",t,"stopping early")
 				return
@@ -296,16 +301,13 @@ def classPrediction(model,x,probaThreshold):
 			classes.append(-1)
 	return classes
 
-def objectiveFunction(trueLabels,previousPredictionsRaw,currentPredictionsRaw):
-
-	previousPredictions = oppositeEncoding(previousPredictionsRaw)
-	currentPredictions = oppositeEncoding(previousPredictionsRaw)
+def objectiveFunction(trueLabels,previousPredictions,currentPredictions):
 
 	m = len(trueLabels)
 	result = 0
 	for i in range(m):
 		result += np.exp(1 - trueLabels[i]*previousPredictions[i]-trueLabels[i]*currentPredictions[i])
-		result = result/m
+	result = result/m
 	return result
 
 def binaryEncoding(y_vect):
@@ -324,9 +326,9 @@ def main():
 	pathToSaveModel = 'bestModel.h5'
 	imsize =  32
 	flattenDimIm = imsize*imsize*3
-	B = 200
+	B = 150
 	T = 10
-	lr = .0001
+	lr = .001
 	reps = 5
 	trainNum = 5000
 	testNum = 1000
@@ -337,6 +339,7 @@ def main():
 	labels = [1,2]
 	probaThreshold = .5
 	handleMultipleInput = "add"
+	lambda1 = 0.000001
 
 	if len(labels)>2 or labels[0]==labels[1]:
 		raise ValueError('labels must be array of 2 distinct values')
@@ -351,10 +354,11 @@ def main():
 	xTrainReshaped = xTrain.flatten().reshape(trainNum,flattenDimIm)/255
 	xTestReshaped = xTest.flatten().reshape(testNum,flattenDimIm)/255
 
+
 	yTrain = binaryEncoding(yTrain)
 	yTest = binaryEncoding(yTest)
 
-	builderNew(B,T,flattenDimIm,lr,reps,xTrainReshaped,yTrain[:trainNum],xTestReshaped,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput)
+	builderNew(B,T,flattenDimIm,lr,reps,xTrainReshaped,yTrain[:trainNum],xTestReshaped,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput,lambda1)
 
 	model = load_model(pathToSaveModel)
 
