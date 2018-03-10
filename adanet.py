@@ -2,7 +2,7 @@
 # @Author: Romain
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 16:36:48
+# @Last Modified time: 2018-03-09 19:36:53
 import numpy as np
 import keras
 from keras.layers import Input, Dense, concatenate, add
@@ -11,7 +11,7 @@ from keras.utils import plot_model
 from keras import backend as k
 from keras import optimizers
 from keras.datasets import cifar10
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, Callback
 import dataProcessing as dp
 import copy as cp
 from itertools import chain
@@ -21,7 +21,11 @@ import inspect
 import os
 from shutil import copyfile
 
+<<<<<<< HEAD
 class StopEarly(keras.callbacks.Callback):
+=======
+class StopEarly(Callback):
+>>>>>>> 308f5d6e7b4d237af7911323f0d18942f75f1581
 	def __init__(self,threshold,metric="val_acc",verbose = True):
 		super(StopEarly,self).__init__()
 		self.threshold = threshold
@@ -30,14 +34,18 @@ class StopEarly(keras.callbacks.Callback):
 		self.stopped_epoch = 0
 		self.verbose = verbose
 
+<<<<<<< HEAD
 	def on_epoch_end(self, epoch, logs=None):
+=======
+	def on_epoch_end(self, epoch, logs={}):
+>>>>>>> 308f5d6e7b4d237af7911323f0d18942f75f1581
 		current = logs.get(self.metric)
 		if logs.get(self.metric) - self.last_value < self.threshold:
 			self.model.stop_training = True
 			self.stopped_epoch = epoch
 		self.last_value = current
 
-	def on_train_end(self):
+	def on_train_end(self, log={}):
 		if self.stopped_epoch > 0 and self.verbose:
 			print("model stopped training on epoch",self.stopped_epoch)
 
@@ -139,7 +147,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-			model.fit(x=xTrain,y=yTrain,epochs=epochs,batch_size=batchSize,verbose=1)
+			model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 			model.save_weights('w_'+pathToSaveModel)
 			model.save(pathToSaveModel)
 
@@ -277,7 +285,7 @@ def selectCandidateLayers(layerDic,t,c):
 			if depth_int == c-1 :
 				candidateList.append(layerName)
 		except :
-		    pass
+			pass
 	return candidateList
 
 def layerCall(dic,keys):
