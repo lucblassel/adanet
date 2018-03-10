@@ -274,6 +274,7 @@ def getPreviousDepth(layerDic,t):
 	return previousDepth + 1
 
 def selectCandidateLayers(layerDic,t,c):
+	
 	candidateList = []
 	for layerName in layerDic.keys():
 		depth,iteration = layerName.split('.')
