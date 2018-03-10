@@ -27,19 +27,26 @@ from shutil import copyfile
 
 
 class StopEarly(Callback):
-	def __init__(self,threshold,metric="val_acc",verbose = True):
+	def __init__(self,threshold,metric="val_acc",verbose = True,patience=5):
 		super(StopEarly,self).__init__()
 		self.threshold = threshold
 		self.metric = metric
 		self.last_value = 0
 		self.stopped_epoch = 0
+		self.notChanged = 0
 		self.verbose = verbose
+		self.patience = patience
 
 	def on_epoch_end(self, epoch, logs={}):
 		current = logs.get(self.metric)
 		if logs.get(self.metric) - self.last_value < self.threshold:
-			self.model.stop_training = True
-			self.stopped_epoch = epoch
+			if self.notChanged >= self.patience:
+				self.model.stop_training = True
+				self.stopped_epoch = epoch
+			else:
+				self.notChanged +=1
+		else:
+			self.notChanged = 0	
 		self.last_value = current
 
 	def on_train_end(self, log={}):
