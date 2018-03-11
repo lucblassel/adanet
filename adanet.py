@@ -379,7 +379,15 @@ def main():
 		if int(np.round(preds[i])) != yTest[i]:
 			error +=1
 	print("error:",error/testNum)
+	return error
 
+def meanMain(n):
+	error = 0
+	for i in range(n):
+		error += main()
+	error/=n
+	print("total mean error for",n,"repetitions:",error)
 
 if __name__ == '__main__':
 	main()
+	meanMain(10)
