@@ -141,7 +141,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 			symbolicTensorsDict = toSymbolicDict(1,1,layerDic)
 			model = Model(inputs=symbolicTensorsDict['feeding.Layer'],outputs=symbolicTensorsDict['output.Layer'])
 			model.compile(optimizer = optimizers.SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True), loss='binary_crossentropy', metrics=['accuracy'])
-			model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
+			model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=0)
 			model.save_weights('w_'+pathToSaveModel)
 			model.save(pathToSaveModel)
 
@@ -274,7 +274,7 @@ def getPreviousDepth(layerDic,t):
 	return previousDepth + 1
 
 def selectCandidateLayers(layerDic,t,c):
-	
+
 	candidateList = []
 	for layerName in layerDic.keys():
 		depth,iteration = layerName.split('.')
@@ -341,6 +341,13 @@ def main():
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
+
+	print("B",B)
+	print("T",T)
+	print("lr",lr)
+	print("epsilon",epsilon)
+	print("labels",labels)
+	print("lambda1",lambda1)
 
 	if len(labels)>2 or labels[0]==labels[1]:
 		raise ValueError('labels must be array of 2 distinct values')
