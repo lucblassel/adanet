@@ -396,7 +396,7 @@ def meanMain(n):
 		if i != 'excepted':
 			mean += i
 			c += 1
-	 mean = mean/c
+	mean = mean/c
 	print("total mean error for",n,"repetitions:",mean,'\n',error)
 
 if __name__ == '__main__':
