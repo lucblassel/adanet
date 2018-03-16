@@ -382,11 +382,21 @@ def main():
 	return error
 
 def meanMain(n):
-	error = 0
+	error = []
 	for i in range(n):
-		error += main()
-	error/=n
-	print("total mean error for",n,"repetitions:",error)
+	    try:
+    		error += [main()]
+		except:
+		    error += ['excepted']
+		    pass
+	mean = 0
+	c = 0
+	for i in error:
+	    if i != 'excepted':
+	        mean += i
+	        c += 1
+	 mean = mean/c
+	print("total mean error for",n,"repetitions:",mean,'\n',error)
 
 if __name__ == '__main__':
 	main()
