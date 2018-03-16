@@ -337,7 +337,9 @@ def main():
 	batchSize = 32
 	NrandomModels  = 10
 	epsilon = .0001
-	labels = [1,2]
+	# labels = [1,2]
+	# labels = [3,5] #cat-dog
+	labels = [5,7] #dog-horse
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
