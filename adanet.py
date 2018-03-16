@@ -384,18 +384,18 @@ def main():
 def meanMain(n):
 	error = []
 	for i in range(n):
-	    try:
-    		error += [main()]
+		try:
+			error += [main()]
 			print(error)
 		except Exception:
-		    error += ['excepted']
-		    pass
+			error += ['excepted']
+			pass
 	mean = 0
 	c = 0
 	for i in error:
-	    if i != 'excepted':
-	        mean += i
-	        c += 1
+		if i != 'excepted':
+			mean += i
+			c += 1
 	 mean = mean/c
 	print("total mean error for",n,"repetitions:",mean,'\n',error)
 
