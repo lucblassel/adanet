@@ -338,8 +338,8 @@ def main():
 	NrandomModels  = 10
 	epsilon = .0001
 	# labels = [1,2]
-	# labels = [3,5] #cat-dog
-	labels = [5,7] #dog-horse
+	labels = [3,5] #cat-dog
+	# labels = [5,7] #dog-horse
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
@@ -381,7 +381,7 @@ def main():
 		if int(np.round(preds[i])) != yTest[i]:
 			error +=1
 	print("error:",error/testNum)
-	return error
+	return error/testNum
 
 def meanMain(n):
 	error = []
