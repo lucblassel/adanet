@@ -24,7 +24,7 @@ from shutil import copyfile
 import time
 
 class StopEarly(Callback):
-	def __init__(self,threshold,metric="val_acc",verbose = True):
+	def __init__(self,threshold,metric="val_acc",verbose = False):
 		super(StopEarly,self).__init__()
 		self.threshold = threshold
 		self.metric = metric
@@ -386,7 +386,8 @@ def meanMain(n):
 	for i in range(n):
 	    try:
     		error += [main()]
-		except:
+			print(error)
+		except Exception:
 		    error += ['excepted']
 		    pass
 	mean = 0
@@ -399,5 +400,5 @@ def meanMain(n):
 	print("total mean error for",n,"repetitions:",mean,'\n',error)
 
 if __name__ == '__main__':
-	main()
+	# main()
 	meanMain(10)
