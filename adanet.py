@@ -128,6 +128,7 @@ def toSymbolicDict(T,depth,layerDic):
 def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput,lambda1):
 	"""
 	luc.blassel@agroparistech.fr
+	romain.gautron@agroparistech.fr
 	"""
 	count = 1
 	layerDic = {}

@@ -16,7 +16,7 @@ __pycache__/
 *.tex
 
 #image files
-*.png
+# *.png
 
 # C extensions
 *.so
