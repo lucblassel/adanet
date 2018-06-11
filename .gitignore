@@ -7,6 +7,14 @@ __pycache__/
 *.h5
 *.pkl
 
+#latex output files
+*.aux
+*.out
+*.fls
+*.log
+*latex*
+*.tex
+
 #image files
 *.png
 
