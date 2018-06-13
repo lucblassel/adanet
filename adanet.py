@@ -3,40 +3,50 @@
 # @Date:   2018-02-28 15:38:45
 # @Last Modified by:   romaingautronapt
 # @Last Modified time: 2018-03-09 19:36:53
-import numpy as np
+
 import keras
+import inspect
+import os
+import dill
+
+import numpy as np
+import dataProcessing as dp
+import copy as cp
+
+from keras import backend as k
+from keras import optimizers
+from keras.callbacks import EarlyStopping, Callback
+from keras.datasets import cifar10
 from keras.layers import Input, Dense, concatenate, add
 from keras.models import Model, load_model
 from keras.utils import plot_model
-from keras import backend as k
-from keras import optimizers
-from keras.datasets import cifar10
-from keras.callbacks import EarlyStopping, Callback
 from keras.regularizers import l1
-import dataProcessing as dp
-import copy as cp
 from itertools import chain
-import dill
 from pprint import pprint
-import inspect
-import os
 from shutil import copyfile
-import time
+
 
 class StopEarly(Callback):
-	def __init__(self,threshold,metric="val_acc",verbose = False):
+	def __init__(self,threshold,metric="val_acc",verbose = True,patience=5):
 		super(StopEarly,self).__init__()
 		self.threshold = threshold
 		self.metric = metric
 		self.last_value = 0
 		self.stopped_epoch = 0
+		self.notChanged = 0
 		self.verbose = verbose
+		self.patience = patience
 
 	def on_epoch_end(self, epoch, logs={}):
 		current = logs.get(self.metric)
 		if logs.get(self.metric) - self.last_value < self.threshold:
-			self.model.stop_training = True
-			self.stopped_epoch = epoch
+			if self.notChanged >= self.patience:
+				self.model.stop_training = True
+				self.stopped_epoch = epoch
+			else:
+				self.notChanged +=1
+		else:
+			self.notChanged = 0
 		self.last_value = current
 
 	def on_train_end(self, log={}):
@@ -118,13 +128,14 @@ def toSymbolicDict(T,depth,layerDic):
 def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSize,NrandomModels,epsilon,pathToSaveModel,probaThreshold,handleMultipleInput,lambda1):
 	"""
 	luc.blassel@agroparistech.fr
+	romain.gautron@agroparistech.fr
 	"""
 	count = 1
 	layerDic = {}
 	layersNamesToOutput = []
 	concatOutName = 'c.out'
 
-	earlyStopping = StopEarly(0.001,"val_acc",True)
+	earlyStopping = StopEarly(0.0001,"val_acc",True)
 
 	layerDic['feeding.Layer'] = (Input,{'shape':(flattenDimIm,),'name':'feeding.Layer'})
 
@@ -229,7 +240,7 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 				else:
 					model.load_weights('w_'+pathToSaveModel,by_name=True)
 
-				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=0)
+				model.fit(x=xTrain,y=yTrain,validation_split=0.1,callbacks=[earlyStopping],epochs=epochs,batch_size=batchSize,verbose=1)
 				print("fitted model number ",count)
 				count += 1
 				currentPredictions = classPrediction(model,xTest,probaThreshold)
@@ -247,7 +258,6 @@ def builderNew(B,T,flattenDimIm,lr,reps,xTrain,yTrain,xTest,yTest,epochs,batchSi
 					with open('layerDic.pkl', 'wb') as f:
 						dill.dump(layerDic, f)
 				k.clear_session()
-				print("\n\n currentScore: ",currentScore,'\n\n')
 			if not changed:
 				print("model not improved at iteration",t,"stopping early")
 				return
@@ -329,7 +339,7 @@ def main():
 	flattenDimIm = imsize*imsize*3
 	B = 150
 	T = 10
-	lr = .001
+	lr = .0001
 	reps = 5
 	trainNum = 5000
 	testNum = 1000
@@ -337,9 +347,7 @@ def main():
 	batchSize = 32
 	NrandomModels  = 10
 	epsilon = .0001
-	# labels = [1,2]
-	labels = [3,5] #cat-dog
-	# labels = [5,7] #dog-horse
+	labels = [3,5] #cat/dog
 	probaThreshold = .5
 	handleMultipleInput = "add"
 	lambda1 = 0.000001
