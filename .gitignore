@@ -9,6 +9,7 @@ __pycache__/
 
 #image files
 # *.png
+report/*.png
 
 # C extensions
 *.so
@@ -124,6 +125,7 @@ venv.bak/
 *.fot
 *.cb
 *.cb2
+*.sty
 
 ## Intermediate documents:
 *.dvi
