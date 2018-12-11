@@ -79,7 +79,7 @@ En essayant de reproduire leur méthode qui consiste à construire des réseaux 
 \section{Choix lors des expérimentations}
 \subsection{Choix du dataset}
 
-	Une parmi deux expérimentations à reproduire était au choix : 
+	Une parmi deux expérimentations à reproduire était au choix :
 	\begin{itemize}
 		\item CIFAR-10 dataset
 		\item Criteo dataset
@@ -114,11 +114,7 @@ Pour traiter les images en dehors d'un réseau de convolution, on vectorise cell
 \end{itemize}
 
 \subsection{Génération des sous réseaux}
-Nous choisissons de générer les sous réseaux aléatoirement. Chaque couche est connectée à la précédente du même sous réseau, mais les connexions avec les couches de niveau inférieur des autres sous réseaux est aléatoire. 
-
-\subsection{Choix de la fonction objectif}
-
-Nous choisissons de générer les sous réseaux aléatoirement. Chaque couche est connectée à la précédente du même sous réseau, mais les connexions avec les couches de niveau inférieur des autres sous réseaux est aléatoire. 
+Nous choisissons de générer les sous réseaux aléatoirement. Chaque couche est connectée à la précédente du même sous réseau, mais les connexions avec les couches de niveau inférieur des autres sous réseaux est aléatoire.
 
 \subsection{Fonction objectif}
 \label{subsec:fobj}
@@ -147,14 +143,14 @@ F_t(\mathbf{h})=\\
 \paragraph{}Tous les sous-réseaux candidats sont insérés dans le réseau adanet de l’étape précédente pour être évalués, après entraînement, sur un set de test, selon la fonction objective définie en \ref{subsec:fobj}. Le résultat de la fonction objective le plus bas est mis en mémoire ainsi que le modèle adanet correspondant, et mis à jour si besoin à chaque évaluation de candidat. A la fin de l’évaluation des candidats le meilleur réseau est sauvegard\'e sur le disque et utilise comme modèle de base pour l’étape suivante.
 
 \subsection{Implémentation de la gestion d’entrées multiples}
-\paragraph{}Comme dit dans la partie \ref{subsec:mult}, il n'est pas dit dans le papier, comment la gestion du nombre de neurones entrant variable pour certaines couches. Si on concatène les tenseur des couches entrantes on change la taille d’entrée de la couche supérieure. Ceci pose un problème lors du chargement des poids du modèle adanet de l’étape précédente 
-puisque le tenseur de poids sauvegardes et le nouveau tenseur ne font plus la même taille. Une solution que nous avons utilisée est de ne pas charger les poids précédents pour ces couches de concaténation. cependant cela peut faire perdre en performance. Nous avons donc préféré sommer les tenseurs entrants et garder les poids de l’itération précédente. 
+\paragraph{}Comme dit dans la partie \ref{subsec:mult}, il n'est pas dit dans le papier, comment la gestion du nombre de neurones entrant variable pour certaines couches. Si on concatène les tenseur des couches entrantes on change la taille d’entrée de la couche supérieure. Ceci pose un problème lors du chargement des poids du modèle adanet de l’étape précédente
+puisque le tenseur de poids sauvegardes et le nouveau tenseur ne font plus la même taille. Une solution que nous avons utilisée est de ne pas charger les poids précédents pour ces couches de concaténation. cependant cela peut faire perdre en performance. Nous avons donc préféré sommer les tenseurs entrants et garder les poids de l’itération précédente.
 
 \subsection{Problème de flexibilité}
-\paragraph{} Puisque la structure change constamment au fur et à mesure des itérations on ne peut pas se contenter de sauvegarder les modèles directement au disque puisque l'on ne peut pas changer les modèles une fois qu'ils sont compil\'es. Pour pouvoir passer outre ce problème nous avons sauvegard\'e la structure exacte du modèle dans un dictionnaire et on reconstruit le modèle \`a partir de ce dictionnaire à chaque itération. Une fois construit on charge les poids de l'ancien modèle dans les couches qu'il a en commun avec le nouveau à chaque itération le dictionnaire correspondant au meilleur modèle est simplement s\'erialisable puisque ça n'est que du texte. 
+\paragraph{} Puisque la structure change constamment au fur et à mesure des itérations on ne peut pas se contenter de sauvegarder les modèles directement au disque puisque l'on ne peut pas changer les modèles une fois qu'ils sont compil\'es. Pour pouvoir passer outre ce problème nous avons sauvegard\'e la structure exacte du modèle dans un dictionnaire et on reconstruit le modèle \`a partir de ce dictionnaire à chaque itération. Une fois construit on charge les poids de l'ancien modèle dans les couches qu'il a en commun avec le nouveau à chaque itération le dictionnaire correspondant au meilleur modèle est simplement s\'erialisable puisque ça n'est que du texte.
 
 \subsection{Condition d’arrêt}
-\paragraph{}Dans le papier il est dit que l'algorithme s’arrête lorsque l'ajout d'un nouveau sous-réseau ne fait pas diminuer sa fonction objectif. Au regard de nos puissances limitées de calcul nous avons fait le choix de s’arrêter lorsque la diminution de la fonction objective passe sous un certain seuil. L’entraînement des différents sous-réseaux est aussi soumis à une condition similaire d’arrêt lorsque l'erreur de classification sur un jeu de validation ne diminue plus. 
+\paragraph{}Dans le papier il est dit que l'algorithme s’arrête lorsque l'ajout d'un nouveau sous-réseau ne fait pas diminuer sa fonction objectif. Au regard de nos puissances limitées de calcul nous avons fait le choix de s’arrêter lorsque la diminution de la fonction objective passe sous un certain seuil. L’entraînement des différents sous-réseaux est aussi soumis à une condition similaire d’arrêt lorsque l'erreur de classification sur un jeu de validation ne diminue plus.
 
 \section{Résultats}
 \paragraph{}Nous n'avons pas pu refaire toutes les optimisations d'hyper-paramètres qui ont été faites dans le papier, donc nous avons simplement choisi un jeu d'hyper-paramètres pour nos expérimentations:
@@ -186,7 +182,7 @@ puisque le tenseur de poids sauvegardes et le nouveau tenseur ne font plus la m�
 
 
 \section{Conclusion}
-Nous avons essayé dans ce projet de reproduire les résultats d'Adanet. Nous avons été contraints de faire des choix, notamment sur la génération des sous réseaux et nous avons du nous priver d'optimisation des hyper-paramètre (nécessité d'implémenter en plus une méthode sophistiquée). De ce fait, les résultats que nous avons obtenus sont, exception faite pour deer-horse, nettement moins bons que ceux obtenus dans le papier. Certains des résultats que nous avons obtenus (deer-truck, automobile-truck et cat-dog) semblent biais\'es puisque l’on obtient des précisions inférieures a $50\%$.  
+Nous avons essayé dans ce projet de reproduire les résultats d'Adanet. Nous avons été contraints de faire des choix, notamment sur la génération des sous réseaux et nous avons du nous priver d'optimisation des hyper-paramètre (nécessité d'implémenter en plus une méthode sophistiquée). De ce fait, les résultats que nous avons obtenus sont, exception faite pour deer-horse, nettement moins bons que ceux obtenus dans le papier. Certains des résultats que nous avons obtenus (deer-truck, automobile-truck et cat-dog) semblent biais\'es puisque l’on obtient des précisions inférieures a $50\%$.
 Dans tous les cas, des performances nettement meilleures que celles obtenues dans le papier peuvent être obtenues via du transfert learning (précision supérieure à 90\%). Ceci ne montre pas clairement l'intérêt de cette méthode très nécessiteuse de calculs (génération d'un grand nombre de sous réseaux). Cependant, si l'on ne dispose pas d'un modèle entraîné pour faire de l'apprentissage par transfert, alors cette approche peut être intéressante.
 
 \end{document}
