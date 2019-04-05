@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
-# @Author: Romain
-# @Date:   2018-02-28 15:38:45
-# @Last Modified by:   romaingautronapt
-# @Last Modified time: 2018-03-09 19:36:53
+"""
+Python implementation of ADANET
+authors: Luc BLASSEL and Romain GAUTRON
+"""
 
 import keras
 import inspect

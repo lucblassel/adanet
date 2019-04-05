@@ -1,10 +1,7 @@
 """
-2018-01-14T21:49:15.920Z
------------------------------------------------
-BLASSEL Luc
-Data processing
------------------------------------------------
+Author: Luc BLASSEL
 """
+
 import keras
 from keras.datasets import cifar10
 import numpy as np

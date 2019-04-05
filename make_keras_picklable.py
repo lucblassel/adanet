@@ -1,3 +1,7 @@
+"""
+author: Romain GAUTRON
+"""
+
 import types
 import tempfile
 import keras.models
